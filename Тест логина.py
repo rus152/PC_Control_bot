@@ -1,68 +1,60 @@
 import telebot
 import random
+import json
+import os
 
-# Токен, полученный от BotFather
-TOKEN = '5169915860:AAFbTMdwuktxXRvpTzZdLqDOVHtrjUP8X5Y'
+TOKEN = '5169915860:AAFbTMdwuktxXRvpTzZdLqDOVHtrjUP8X5Y'  # Токен, полученный от BotFather
 bot = telebot.TeleBot(TOKEN)
 
 VALID_CODE = random.randint(100000, 999999)  # Сгенерированный код, который выводится в консоль при запуске скрипта
 print("Используйте этот код для проверки:", VALID_CODE)
 
-# Словари для хранения состояний и количества попыток пользователей
-user_states = {}
-user_attempts = {}
-banned_users = set()
+filename = 'Users.json'
 
-def get_user_state(user_id):
-    return user_states.get(user_id, None)
+# Проверка наличия файла и загрузка данных
+if not os.path.exists(filename):
+    with open(filename, 'w') as file:
+        json.dump({"verified": [], "banned": []}, file)
 
-def set_user_state(user_id, state):
-    user_states[user_id] = state
+with open(filename) as file:
+    data = json.load(file)
 
-def decrease_attempt(user_id):
-    if user_id in user_attempts:
-        user_attempts[user_id] -= 1
-    else:
-        user_attempts[user_id] = 2  # Первая попытка использована, остается еще две
+verified_users = set(data['verified'])
+banned_users = set(data['banned'])
+
+def save_data():
+    with open(filename, 'w') as file:
+        json.dump({"verified": list(verified_users), "banned": list(banned_users)}, file)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     user_id = message.from_user.id
     if user_id in banned_users:
         bot.reply_to(message, "Вы заблокированы и не можете проверять коды.")
+    elif user_id in verified_users:
+        bot.reply_to(message, "Вы уже верифицированы.")
     else:
-        set_user_state(user_id, 'waiting_for_code')  # Устанавливаем состояние ожидания кода
         bot.reply_to(message, "Привет! Отправь мне код для проверки. У вас есть 3 попытки.")
 
-@bot.message_handler(func=lambda message: get_user_state(message.from_user.id) == 'waiting_for_code')
+@bot.message_handler(func=lambda message: True)
 def check_code(message):
     user_id = message.from_user.id
     if user_id in banned_users:
         bot.reply_to(message, "Вы заблокированы и не можете проверять коды.")
-        return
-
-    try:
-        user_code = int(message.text)
-        if user_code == VALID_CODE:
-            bot.reply_to(message, "Код валиден!")
-            set_user_state(user_id, None)  # Сбрасываем состояние после проверки
-        else:
-            decrease_attempt(user_id)
-            if user_attempts[user_id] > 0:
-                bot.reply_to(message, f"Код не валиден. У вас осталось {user_attempts[user_id]} попыток.")
+    elif user_id in verified_users:
+        bot.reply_to(message, "Вы уже верифицированы. ")
+    else:
+        try:
+            user_code = int(message.text)
+            if user_code == VALID_CODE:
+                verified_users.add(user_id)
+                save_data()
+                bot.reply_to(message, "Код валиден! Вы теперь верифицированы.")
             else:
+                bot.reply_to(message, "Код не валиден. Вы заблокированы.")
                 banned_users.add(user_id)
-                bot.reply_to(message, "Вы использовали все попытки и теперь заблокированы.")
-    except ValueError:
-        bot.reply_to(message, "Пожалуйста, введите 6-значный числовой код.")
-
-@bot.message_handler(func=lambda message: True)  # Обработчик для всех других сообщений
-def handle_other_messages(message):
-    user_id = message.from_user.id
-    if get_user_state(user_id) is None:
-        if user_id in banned_users:
-            bot.reply_to(message, "Вы заблокированы и не можете проверять коды.")
-        else:
-            bot.reply_to(message, "Напиши /start, чтобы начать проверку кода.")
+                save_data()
+        except ValueError:
+            bot.reply_to(message, "Пожалуйста, введите 6-значный числовой код.")
 
 bot.polling()
