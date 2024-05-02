@@ -6,6 +6,7 @@ import os
 import re
 import json
 import random
+import threading
 
 debug_start = 0
 debug_user_data = 0
@@ -32,6 +33,7 @@ if(debug_user_data == 1):
 user_data = {}
 user_states = {}
 
+""" Основные функции """
 
 def on_confirm():
     global user_input  # Глобальная переменная для хранения ввода пользователя
@@ -86,6 +88,35 @@ def get_user_state(user_id):
 def set_user_state(user_id, state):
     user_states[user_id] = state
 
+def save_data():
+    with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json', 'w') as file:
+        json.dump({"verified": list(verified_users), "banned": list(banned_users)}, file)
+
+def code_display(chat_id):
+    window = Tk()
+    window.title("Тест окно")
+
+    lbl = Label(window, text=f'{user_data[chat_id]}'[0])
+    lbl.grid(column=0, row=0)
+
+    lbl = Label(window, text=f'{user_data[chat_id]}'[1])
+    lbl.grid(column=1, row=0)
+
+    lbl = Label(window, text=f'{user_data[chat_id]}'[2])
+    lbl.grid(column=2, row=0)
+
+    lbl = Label(window, text=f'{user_data[chat_id]}'[3])
+    lbl.grid(column=3, row=0)
+
+    lbl = Label(window, text=f'{user_data[chat_id]}'[4])
+    lbl.grid(column=4, row=0)
+
+    lbl = Label(window, text=f'{user_data[chat_id]}'[5])
+    lbl.grid(column=5, row=0)
+
+    window.mainloop()
+
+
 """ Проверка существования токена в APPDATA и создание его при отсутствии """
 
 try:
@@ -121,10 +152,6 @@ with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json') as file:
 verified_users = set(data['verified'])
 banned_users = set(data['banned'])
 
-def save_data():
-    with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json', 'w') as file:
-        json.dump({"verified": list(verified_users), "banned": list(banned_users)}, file)
-
 
 token_code = open(os.getenv('APPDATA') + '\PC_Control_Bot\\token', 'r')
 token = token_code.read()
@@ -140,11 +167,11 @@ def send_welcome(message):
     elif login_system(user_id) == "ban":
         print("Кто ты?")
     else:
-        print("Я тебя не знаю")
+        bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
 
 
 @bot.message_handler(commands=['ver'], func=lambda message: get_user_state(message.chat.id) == None)
-def send_welcome(message):
+def ver_message(message):
     user_id = message.from_user.id
     if login_system(user_id) == "val":
         bot.send_message(message.chat.id, f'Не стоит {message.from_user.first_name}. Вы уже верифицированы')
@@ -154,6 +181,17 @@ def send_welcome(message):
         chat_id = message.chat.id
         user_data[chat_id] = generate_code()
         print("Используйте этот код для проверки:", user_data[chat_id])
+
+        t1 = threading.Thread(target=code_display, args=(chat_id,))
+
+        t1.start()
+
+        print(f'{user_data[chat_id]}'[0])
+        print(f'{user_data[chat_id]}'[1])
+        print(f'{user_data[chat_id]}'[2])
+        print(f'{user_data[chat_id]}'[3])
+        print(f'{user_data[chat_id]}'[4])
+        print(f'{user_data[chat_id]}'[5])
         bot.send_message(message.chat.id, f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для верификации акаунта')
         set_user_state(user_id, 'waiting_for_code')
 
@@ -175,6 +213,7 @@ def check_code(message):
             set_user_state(user_id, None)
     except ValueError:
         bot.reply_to(message, "Пожалуйста, введите 6-значный числовой код.")
+
 
 bot.polling(none_stop=True)
 
