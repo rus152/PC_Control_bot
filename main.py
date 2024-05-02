@@ -131,16 +131,114 @@ def get_keyboard() -> types.ReplyKeyboardMarkup:
     but2 = types.KeyboardButton("/Online")
     but3 = types.KeyboardButton("/hibernation")
     but5 = types.KeyboardButton("/Screen")
-    but6 = types.KeyboardButton("/lock🔒")
+    but6 = types.KeyboardButton("/lock")
     but4 = types.KeyboardButton("/cancel")
     markup.add(but1, but2, but3, but5, but6, but4)
     return markup
 
 def time_select1(message):
     txt = message.text
+    user_id = message.from_user.id
+    if txt == "Назад":
+        markup = get_keyboard()
+        bot.reply_to(message, "Выход", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, None)
 
+    if txt == "Часы":
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        but1 = types.KeyboardButton("Отмена")
+        markup.add(but1)
+        bot.reply_to(message, "Через сколько часов?", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, "Expectation_Hour")
+        bot.register_next_step_handler(message, time_hour)
+
+    if txt == "Минуты":
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        but1 = types.KeyboardButton("Отмена")
+        markup.add(but1)
+        bot.reply_to(message, "Через сколько минут?", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, "Expectation_Minute")
+        bot.register_next_step_handler(message, time_Minute)
+
+    if txt == "Секунды":
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        but1 = types.KeyboardButton("Отмена")
+        markup.add(but1)
+        bot.reply_to(message, "Через сколько секунд?", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, "Expectation_Second")
+        bot.register_next_step_handler(message, time_Second)
+
+def time_hour(message):
+    user_id = message.from_user.id
+    time = message.text
     markup = get_keyboard()
-    bot.reply_to(message, "Вывод кнопок", parse_mode='html', reply_markup=markup)
+    if time == "Отмена":
+        bot.reply_to(message, "Возврат", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, None)
+        return
+    else:
+        try:
+            os.system(f'shutdown /s /t {int(time) * 3600}')
+            bot.reply_to(message, time_message(int(time) * 3600), parse_mode='html', reply_markup=markup)
+            set_user_state(user_id, None)
+            return
+        except:
+            bot.reply_to(message, 'Ошибка, отмена', parse_mode='html', reply_markup=markup)
+            set_user_state(user_id, None)
+            return
+
+def time_Minute(message):
+    user_id = message.from_user.id
+    time = message.text
+    markup = get_keyboard()
+    if time == "Отмена":
+        bot.reply_to(message, "Возврат", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, None)
+        return
+    else:
+        try:
+            os.system(f'shutdown /s /t {int(time) * 60}')
+            bot.reply_to(message, time_message(int(time) * 60), parse_mode='html', reply_markup=markup)
+            set_user_state(user_id, None)
+            return
+        except:
+            bot.reply_to(message, 'Ошибка, отмена',  parse_mode='html', reply_markup=markup)
+            set_user_state(user_id, None)
+            return
+
+def time_Second(message):
+    user_id = message.from_user.id
+    time = message.text
+    markup = get_keyboard()
+    if time == "Отмена":
+        bot.reply_to(message, "Возврат", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, None)
+        return
+    else:
+        try:
+            os.system(f'shutdown /s /t {int(time)}')
+            bot.reply_to(message, time_message(int(time)), parse_mode='html', reply_markup=markup)
+            set_user_state(user_id, None)
+            return
+        except:
+            bot.reply_to(message, 'Ошибка, отмена', parse_mode='html', reply_markup=markup)
+            set_user_state(user_id, None)
+            return
+
+def time_message(seconds):
+    if seconds >= 3600:
+        hours = seconds / 3600
+        unit = "час" if hours < 2 else "часа" if hours < 5 else "часов"
+        return f"Компьютер отключится через {round(hours)} {unit} 🕑"
+    elif seconds >= 60:
+        minutes = seconds / 60
+        unit = "минуту" if minutes < 2 else "минуты" if minutes < 5 else "минут"
+        return f"Компьютер отключится через {round(minutes)} {unit} 🕑"
+    elif seconds > 0:
+        unit = "секунду" if seconds < 2 else "Секунды" if seconds < 5 else "секунд"
+        return f"Компьютер отключится через {seconds} {unit} 🕑"
+    else:
+        return "Компьютер отключается"
 
 
 
@@ -250,6 +348,22 @@ def ver_message(message):
                          parse_mode='html', reply_markup=type_time)
         bot.register_next_step_handler(message, time_select1)
 
+    elif login_system(user_id) == "ban":
+        bot.reply_to(message,
+                     "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+    else:
+        bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+
+@bot.message_handler(commands=['cancel'], func=lambda message: get_user_state(message.chat.id) == None)
+def ver_message(message):
+    user_id = message.from_user.id
+    if login_system(user_id) == "val":
+        cancel = os.system('shutdown /a')
+        print(cancel)
+        if cancel == 1116:
+            bot.reply_to(message, 'Нет запланированного отключения')
+        else:
+            bot.reply_to(message, 'Отключение отменено')
     elif login_system(user_id) == "ban":
         bot.reply_to(message,
                      "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
