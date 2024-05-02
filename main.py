@@ -10,6 +10,7 @@ import threading
 
 debug_start = 0
 debug_user_data = 0
+debug_full = 0
 
 """ Фигня для отладки """
 if(debug_start == 1):
@@ -17,7 +18,6 @@ if(debug_start == 1):
         os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\token')
     except:
         pass
-    os.rmdir(os.getenv('APPDATA') + '\PC_Control_Bot')
     messagebox.showinfo("Успешно", "Токен был удалён")
     exit()
 
@@ -28,6 +28,12 @@ if(debug_user_data == 1):
         pass
     messagebox.showinfo("Успешно", "Данные пользователей удалены")
     exit()
+
+if(debug_full == 1):
+    os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\token')
+    os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json')
+    os.rmdir(os.getenv('APPDATA') + '\PC_Control_Bot')
+    messagebox.showinfo("Успешно", "Папка удалена")
 
 """ Словарь """
 user_data = {}
@@ -116,6 +122,27 @@ def code_display(chat_id):
 
     window.mainloop()
 
+def get_keyboard() -> types.ReplyKeyboardMarkup:
+    """
+    Creates and returns a keyboard for the bot.
+    """
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    but1 = types.KeyboardButton("/shutdown")
+    but2 = types.KeyboardButton("/Online")
+    but3 = types.KeyboardButton("/hibernation")
+    but5 = types.KeyboardButton("/Screen")
+    but6 = types.KeyboardButton("/lock🔒")
+    but4 = types.KeyboardButton("/cancel")
+    markup.add(but1, but2, but3, but5, but6, but4)
+    return markup
+
+def time_select1(message):
+    txt = message.text
+
+    markup = get_keyboard()
+    bot.reply_to(message, "Вывод кнопок", parse_mode='html', reply_markup=markup)
+
+
 
 """ Проверка существования токена в APPDATA и создание его при отсутствии """
 
@@ -127,16 +154,16 @@ except (IOError) and (Exception):
     window.title("Тест окно")
 
     lbl = Label(window, text="Введите свой Токен")
-    lbl.grid(column=0, row=0)
+    lbl.grid(column=1, row=0)
 
     enter_token = Entry(window)
-    enter_token.grid(column=0, row=1)
+    enter_token.grid(column=1, row=1)
 
     confirm_button = Button(window, text="Подтвердить", command=on_confirm)
     confirm_button.grid(column=0, row=2)
 
     exit_button = Button(window, text="Выйти", command=on_exit)
-    exit_button.grid(column=1, row=2)
+    exit_button.grid(column=3, row=2)
 
     window.mainloop()
 
@@ -163,9 +190,10 @@ bot = telebot.TeleBot(token)
 def send_welcome(message):
     user_id = message.from_user.id
     if login_system(user_id) == "val":
-        bot.send_message(message.chat.id, f'Не стоит {message.from_user.first_name}. Вы уже ве')
+        markup = get_keyboard()
+        bot.reply_to(message, "Вывод кнопок", parse_mode='html', reply_markup=markup)
     elif login_system(user_id) == "ban":
-        print("Кто ты?")
+        bot.reply_to(message, "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
     else:
         bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
 
@@ -185,13 +213,6 @@ def ver_message(message):
         t1 = threading.Thread(target=code_display, args=(chat_id,))
 
         t1.start()
-
-        print(f'{user_data[chat_id]}'[0])
-        print(f'{user_data[chat_id]}'[1])
-        print(f'{user_data[chat_id]}'[2])
-        print(f'{user_data[chat_id]}'[3])
-        print(f'{user_data[chat_id]}'[4])
-        print(f'{user_data[chat_id]}'[5])
         bot.send_message(message.chat.id, f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для верификации акаунта')
         set_user_state(user_id, 'waiting_for_code')
 
@@ -213,6 +234,28 @@ def check_code(message):
             set_user_state(user_id, None)
     except ValueError:
         bot.reply_to(message, "Пожалуйста, введите 6-значный числовой код.")
+
+@bot.message_handler(commands=['shutdown'], func=lambda message: get_user_state(message.chat.id) == None)
+def ver_message(message):
+    user_id = message.from_user.id
+    if login_system(user_id) == "val":
+        set_user_state(user_id, 'Selects_the_input_type_time')
+        type_time = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        but0 = types.KeyboardButton("Часы")
+        but1 = types.KeyboardButton("Минуты")
+        but2 = types.KeyboardButton("Секунды")
+        but3 = types.KeyboardButton("Назад")
+        type_time.add(but0, but1, but2, but3)
+        bot.send_message(message.chat.id, 'В чём писать время?',
+                         parse_mode='html', reply_markup=type_time)
+        bot.register_next_step_handler(message, time_select1)
+
+    elif login_system(user_id) == "ban":
+        bot.reply_to(message,
+                     "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+    else:
+        bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+
 
 
 bot.polling(none_stop=True)
