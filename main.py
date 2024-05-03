@@ -7,6 +7,10 @@ import re
 import json
 import random
 import threading
+import sys
+
+import pystray
+from PIL import Image
 
 debug_start = 0
 debug_user_data = 0
@@ -19,7 +23,7 @@ if(debug_start == 1):
     except:
         pass
     messagebox.showinfo("Успешно", "Токен был удалён")
-    exit()
+    os._exit(0)
 
 if(debug_user_data == 1):
     try:
@@ -27,13 +31,14 @@ if(debug_user_data == 1):
     except:
         pass
     messagebox.showinfo("Успешно", "Данные пользователей удалены")
-    exit()
+    os._exit(0)
 
 if(debug_full == 1):
     os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\token')
     os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json')
     os.rmdir(os.getenv('APPDATA') + '\PC_Control_Bot')
     messagebox.showinfo("Успешно", "Папка удалена")
+    os._exit(0)
 
 """ Словарь """
 user_data = {}
@@ -74,7 +79,7 @@ def validate_token(token):
     return pattern.match(token) is not None and len(token) == 46
 
 def on_exit():
-    exit()
+    os._exit(0)
 
 def login_system(user_id):
     if user_id in banned_users:
@@ -139,12 +144,13 @@ def get_keyboard() -> types.ReplyKeyboardMarkup:
 def time_select1(message):
     txt = message.text
     user_id = message.from_user.id
+
     if txt == "Назад":
         markup = get_keyboard()
         bot.reply_to(message, "Выход", parse_mode='html', reply_markup=markup)
         set_user_state(user_id, None)
 
-    if txt == "Часы":
+    elif txt == "Часы":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         but1 = types.KeyboardButton("Отмена")
         markup.add(but1)
@@ -152,7 +158,7 @@ def time_select1(message):
         set_user_state(user_id, "Expectation_Hour")
         bot.register_next_step_handler(message, time_hour)
 
-    if txt == "Минуты":
+    elif txt == "Минуты":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         but1 = types.KeyboardButton("Отмена")
         markup.add(but1)
@@ -160,13 +166,19 @@ def time_select1(message):
         set_user_state(user_id, "Expectation_Minute")
         bot.register_next_step_handler(message, time_Minute)
 
-    if txt == "Секунды":
+    elif txt == "Секунды":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         but1 = types.KeyboardButton("Отмена")
         markup.add(but1)
         bot.reply_to(message, "Через сколько секунд?", parse_mode='html', reply_markup=markup)
         set_user_state(user_id, "Expectation_Second")
         bot.register_next_step_handler(message, time_Second)
+
+    else:
+        markup = get_keyboard()
+        bot.reply_to(message, "Отмена", parse_mode='html', reply_markup=markup)
+        set_user_state(user_id, None)
+
 
 def time_hour(message):
     user_id = message.from_user.id
@@ -240,7 +252,34 @@ def time_message(seconds):
     else:
         return "Компьютер отключается"
 
+def on_clicked_trei(icon, item):
+    if str(item) == "Press":
+        print('press')
+    elif str(item) == "Exit":
+        icon.stop()
+        try:
+            os._exit(0)  # Это немедленно завершит все процессы и потоки программы
+        except SystemExit:
+            print("Exiting...")
 
+def trei():
+    image = Image.open(resource_path("icon.png"))
+    icon = pystray.Icon('What?', image, menu=pystray.Menu(
+        pystray.MenuItem("Press", on_clicked_trei),
+        pystray.MenuItem("Exit", on_clicked_trei),
+    ))
+    return icon
+
+def trei_start(icon):
+    icon.run()
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 """ Проверка существования токена в APPDATA и создание его при отсутствии """
 
@@ -283,6 +322,11 @@ token = token_code.read()
 token_code.close()
 
 bot = telebot.TeleBot(token)
+
+icon = trei()
+
+t2 = threading.Thread(target=trei_start, args=(icon,))
+t2.start()
 
 @bot.message_handler(commands=['start'], func=lambda message: get_user_state(message.chat.id) == None)
 def send_welcome(message):
@@ -344,7 +388,7 @@ def ver_message(message):
         but2 = types.KeyboardButton("Секунды")
         but3 = types.KeyboardButton("Назад")
         type_time.add(but0, but1, but2, but3)
-        bot.send_message(message.chat.id, 'В чём писать время?',
+        bot.send_message(message.chat.id, 'Как вы хотите написать время?',
                          parse_mode='html', reply_markup=type_time)
         bot.register_next_step_handler(message, time_select1)
 

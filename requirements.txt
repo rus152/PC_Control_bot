@@ -1,1 +1,3 @@
 pytelegrambotapi
+pystray
+pillow
