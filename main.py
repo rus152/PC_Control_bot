@@ -8,6 +8,7 @@ import json
 import random
 import threading
 import sys
+import time
 
 import pystray
 from PIL import Image
@@ -263,7 +264,7 @@ def on_clicked_trei(icon, item):
             print("Exiting...")
 
 def trei():
-    image = Image.open(resource_path("icon.png"))
+    image = Image.open(resource_path("logo_init.png"))
     icon = pystray.Icon('What?', image, menu=pystray.Menu(
         pystray.MenuItem("Press", on_clicked_trei),
         pystray.MenuItem("Exit", on_clicked_trei),
@@ -316,105 +317,136 @@ with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json') as file:
 verified_users = set(data['verified'])
 banned_users = set(data['banned'])
 
-
-token_code = open(os.getenv('APPDATA') + '\PC_Control_Bot\\token', 'r')
-token = token_code.read()
-token_code.close()
-
-bot = telebot.TeleBot(token)
-
 icon = trei()
 
 t2 = threading.Thread(target=trei_start, args=(icon,))
 t2.start()
 
-@bot.message_handler(commands=['start'], func=lambda message: get_user_state(message.chat.id) == None)
-def send_welcome(message):
-    user_id = message.from_user.id
-    if login_system(user_id) == "val":
-        markup = get_keyboard()
-        bot.reply_to(message, "Вывод кнопок", parse_mode='html', reply_markup=markup)
-    elif login_system(user_id) == "ban":
-        bot.reply_to(message, "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
-    else:
-        bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
 
 
-@bot.message_handler(commands=['ver'], func=lambda message: get_user_state(message.chat.id) == None)
-def ver_message(message):
-    user_id = message.from_user.id
-    if login_system(user_id) == "val":
-        bot.send_message(message.chat.id, f'Не стоит {message.from_user.first_name}. Вы уже верифицированы')
-    elif login_system(user_id) == "ban":
-        bot.send_message(message.chat.id, f'Вы уже заблокированы')
-    else:
-        chat_id = message.chat.id
-        user_data[chat_id] = generate_code()
-        print("Используйте этот код для проверки:", user_data[chat_id])
+token_code = open(os.getenv('APPDATA') + '\PC_Control_Bot\\token', 'r')
+token = token_code.read()
+token_code.close()
 
-        t1 = threading.Thread(target=code_display, args=(chat_id,))
+alive = True
 
-        t1.start()
-        bot.send_message(message.chat.id, f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для верификации акаунта')
-        set_user_state(user_id, 'waiting_for_code')
-
-@bot.message_handler(func=lambda message: get_user_state(message.from_user.id) == 'waiting_for_code')
-def check_code(message):
-    chat_id = message.chat.id
-    user_id = message.from_user.id
+while alive == True:
     try:
-        user_code = int(message.text)
-        if chat_id in user_data and user_data[chat_id] == user_code:
-            bot.reply_to(message, "Код валиден! Вы теперь верифицированы.")
-            verified_users.add(user_id)
-            save_data()
-            set_user_state(user_id, None)
-        else:
-            bot.reply_to(message, "Код не валиден. Вы заблокированы.")
-            banned_users.add(user_id)
-            save_data()
-            set_user_state(user_id, None)
-    except ValueError:
-        bot.reply_to(message, "Пожалуйста, введите 6-значный числовой код.")
+        bot = telebot.TeleBot(token)
 
-@bot.message_handler(commands=['shutdown'], func=lambda message: get_user_state(message.chat.id) == None)
-def ver_message(message):
-    user_id = message.from_user.id
-    if login_system(user_id) == "val":
-        set_user_state(user_id, 'Selects_the_input_type_time')
-        type_time = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        but0 = types.KeyboardButton("Часы")
-        but1 = types.KeyboardButton("Минуты")
-        but2 = types.KeyboardButton("Секунды")
-        but3 = types.KeyboardButton("Назад")
-        type_time.add(but0, but1, but2, but3)
-        bot.send_message(message.chat.id, 'Как вы хотите написать время?',
-                         parse_mode='html', reply_markup=type_time)
-        bot.register_next_step_handler(message, time_select1)
+        icon.icon = Image.open(resource_path("logo_work.png"))
 
-    elif login_system(user_id) == "ban":
-        bot.reply_to(message,
-                     "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
-    else:
-        bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
-
-@bot.message_handler(commands=['cancel'], func=lambda message: get_user_state(message.chat.id) == None)
-def ver_message(message):
-    user_id = message.from_user.id
-    if login_system(user_id) == "val":
-        cancel = os.system('shutdown /a')
-        print(cancel)
-        if cancel == 1116:
-            bot.reply_to(message, 'Нет запланированного отключения')
-        else:
-            bot.reply_to(message, 'Отключение отменено')
-    elif login_system(user_id) == "ban":
-        bot.reply_to(message,
-                     "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
-    else:
-        bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+        @bot.message_handler(commands=['start'], func=lambda message: get_user_state(message.chat.id) == None)
+        def send_welcome(message):
+            user_id = message.from_user.id
+            if login_system(user_id) == "val":
+                markup = get_keyboard()
+                bot.reply_to(message, "Вывод кнопок", parse_mode='html', reply_markup=markup)
+            elif login_system(user_id) == "ban":
+                bot.reply_to(message,
+                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+            else:
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
 
 
+        @bot.message_handler(commands=['ver'], func=lambda message: get_user_state(message.chat.id) == None)
+        def ver_message(message):
+            user_id = message.from_user.id
+            if login_system(user_id) == "val":
+                bot.send_message(message.chat.id, f'Не стоит {message.from_user.first_name}. Вы уже верифицированы')
+            elif login_system(user_id) == "ban":
+                bot.send_message(message.chat.id, f'Вы уже заблокированы')
+            else:
+                chat_id = message.chat.id
+                user_data[chat_id] = generate_code()
+                print("Используйте этот код для проверки:", user_data[chat_id])
 
-bot.polling(none_stop=True)
+                t1 = threading.Thread(target=code_display, args=(chat_id,))
 
+                t1.start()
+                bot.send_message(message.chat.id,
+                                 f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для верификации акаунта')
+                set_user_state(user_id, 'waiting_for_code')
+
+
+        @bot.message_handler(func=lambda message: get_user_state(message.from_user.id) == 'waiting_for_code')
+        def check_code(message):
+            chat_id = message.chat.id
+            user_id = message.from_user.id
+            try:
+                user_code = int(message.text)
+                if chat_id in user_data and user_data[chat_id] == user_code:
+                    bot.reply_to(message, "Код валиден! Вы теперь верифицированы.")
+                    verified_users.add(user_id)
+                    save_data()
+                    set_user_state(user_id, None)
+                else:
+                    bot.reply_to(message, "Код не валиден. Вы заблокированы.")
+                    banned_users.add(user_id)
+                    save_data()
+                    set_user_state(user_id, None)
+            except ValueError:
+                bot.reply_to(message, "Пожалуйста, введите 6-значный числовой код.")
+
+
+        @bot.message_handler(commands=['shutdown'], func=lambda message: get_user_state(message.chat.id) == None)
+        def ver_message(message):
+            user_id = message.from_user.id
+            if login_system(user_id) == "val":
+                set_user_state(user_id, 'Selects_the_input_type_time')
+                type_time = types.ReplyKeyboardMarkup(resize_keyboard=True)
+                but0 = types.KeyboardButton("Часы")
+                but1 = types.KeyboardButton("Минуты")
+                but2 = types.KeyboardButton("Секунды")
+                but3 = types.KeyboardButton("Назад")
+                type_time.add(but0, but1, but2, but3)
+                bot.send_message(message.chat.id, 'Как вы хотите написать время?',
+                                 parse_mode='html', reply_markup=type_time)
+                bot.register_next_step_handler(message, time_select1)
+
+            elif login_system(user_id) == "ban":
+                bot.reply_to(message,
+                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+            else:
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+
+
+        @bot.message_handler(commands=['cancel'], func=lambda message: get_user_state(message.chat.id) == None)
+        def ver_message(message):
+            user_id = message.from_user.id
+            if login_system(user_id) == "val":
+                cancel = os.system('shutdown /a')
+                print(cancel)
+                if cancel == 1116:
+                    bot.reply_to(message, 'Нет запланированного отключения')
+                else:
+                    bot.reply_to(message, 'Отключение отменено')
+            elif login_system(user_id) == "ban":
+                bot.reply_to(message,
+                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+            else:
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+
+
+        @bot.message_handler(commands=['Online'], func=lambda message: get_user_state(message.chat.id) == None)
+        def ver_message(message):
+            user_id = message.from_user.id
+            if login_system(user_id) == "val":
+                image = Image.open(resource_path("logo_ping.png"))
+                icon.icon = image
+                bot.reply_to(message, 'Компьютер онлайн!')
+                image = Image.open(resource_path("logo_work.png"))
+                icon.icon = image
+            elif login_system(user_id) == "ban":
+                bot.reply_to(message,
+                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+            else:
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+
+        bot.polling(none_stop=True)
+
+    except:
+        image = Image.open(resource_path("logo_error.png"))
+        icon.icon = image
+        print("error")
+        time.sleep(5)
