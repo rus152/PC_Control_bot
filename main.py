@@ -1,5 +1,3 @@
-import telebot
-from telebot import types
 from tkinter import *
 from tkinter import messagebox
 import os
@@ -9,35 +7,34 @@ import random
 import threading
 import sys
 import time
+import requests
 
+import telebot
+from telebot import types
+from notifypy import Notify
 import pystray
 from PIL import Image
+from PIL import ImageGrab
 
 debug_start = 0
 debug_user_data = 0
 debug_full = 0
 
 """ Фигня для отладки """
-if(debug_start == 1):
-    try:
-        os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\token')
-    except:
-        pass
+if debug_start == 1:
+    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\token')
     messagebox.showinfo("Успешно", "Токен был удалён")
     os._exit(0)
 
-if(debug_user_data == 1):
-    try:
-        os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json')
-    except:
-        pass
+if debug_user_data == 1:
+    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json')
     messagebox.showinfo("Успешно", "Данные пользователей удалены")
     os._exit(0)
 
-if(debug_full == 1):
-    os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\token')
-    os.remove(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json')
-    os.rmdir(os.getenv('APPDATA') + '\PC_Control_Bot')
+if debug_full == 1:
+    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\token')
+    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json')
+    os.rmdir(os.getenv('APPDATA') + '\\PC_Control_Bot')
     messagebox.showinfo("Успешно", "Папка удалена")
     os._exit(0)
 
@@ -64,10 +61,10 @@ def on_confirm():
 
     if (tkn_val == 1):
         try:
-            os.mkdir(os.getenv('APPDATA') + '\PC_Control_Bot')
+            os.mkdir(os.getenv('APPDATA') + '\\PC_Control_Bot')
         except:
             pass
-        f = open(os.getenv('APPDATA') + '\PC_Control_Bot\\token', 'w')
+        f = open(os.getenv('APPDATA') + '\\PC_Control_Bot\\token', 'w')
         f.write(user_input)
         f.close()
         window.destroy()
@@ -101,7 +98,7 @@ def set_user_state(user_id, state):
     user_states[user_id] = state
 
 def save_data():
-    with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json', 'w') as file:
+    with open(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json', 'w') as file:
         json.dump({"verified": list(verified_users), "banned": list(banned_users)}, file)
 
 def code_display(chat_id):
@@ -134,9 +131,9 @@ def get_keyboard() -> types.ReplyKeyboardMarkup:
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     but1 = types.KeyboardButton("/shutdown")
-    but2 = types.KeyboardButton("/Online")
+    but2 = types.KeyboardButton("/ping")
     but3 = types.KeyboardButton("/hibernation")
-    but5 = types.KeyboardButton("/Screen")
+    but5 = types.KeyboardButton("/screenshot")
     but6 = types.KeyboardButton("/lock")
     but4 = types.KeyboardButton("/cancel")
     markup.add(but1, but2, but3, but5, but6, but4)
@@ -254,8 +251,9 @@ def time_message(seconds):
         return "Компьютер отключается"
 
 def on_clicked_trei(icon, item):
-    if str(item) == "Press":
-        print('press')
+    if str(item) == "Restart":
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
     elif str(item) == "Exit":
         icon.stop()
         try:
@@ -266,7 +264,7 @@ def on_clicked_trei(icon, item):
 def trei():
     image = Image.open(resource_path("logo_init.png"))
     icon = pystray.Icon('What?', image, menu=pystray.Menu(
-        pystray.MenuItem("Press", on_clicked_trei),
+        pystray.MenuItem("Restart", on_clicked_trei),
         pystray.MenuItem("Exit", on_clicked_trei),
     ))
     return icon
@@ -282,10 +280,44 @@ def resource_path(relative_path):
 
     return os.path.join(base_path, relative_path)
 
+def notification_system(title, message, icon="icon.png"):
+    notification = Notify()
+    try:
+        notification.application_name = bot.get_my_name().name
+    except NameError:
+        notification.application_name = "Bot"
+    notification.title = title
+    notification.message = message
+    notification.icon = resource_path(icon)
+    notification.send()
+
+
+def internet_check():
+    timeout = 1
+    internet = False
+    trying = 0
+    while not internet:
+        try:
+            requests.head("http://www.google.com/", timeout=timeout)
+            internet = True
+            time.sleep(1)
+        except requests.exceptions.ConnectionError:
+            if trying == 1:
+                notification_system('Ошибка', 'Не удалось соединиться с интернетом')
+            print('Ошибка')
+            trying = trying + 1
+            time.sleep(5)
+
+
 """ Проверка существования токена в APPDATA и создание его при отсутствии """
 
+icon = trei()
+
+t2 = threading.Thread(target=trei_start, args=(icon,))
+t2.start()
+
 try:
-    f = open(os.getenv('APPDATA') + '\PC_Control_Bot\\token', 'r')
+    f = open(os.getenv('APPDATA') + '\\PC_Control_Bot\\token', 'r')
     f.close()
 except (IOError) and (Exception):
     window = Tk()
@@ -305,26 +337,20 @@ except (IOError) and (Exception):
 
     window.mainloop()
 
-"""Проверка и загрузка списока пользователей"""
+"""Проверка и загрузка списка пользователей"""
 
-if not os.path.exists(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json'):
-    with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json', 'w') as file:
+if not os.path.exists(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json'):
+    with open(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json', 'w') as file:
         json.dump({"verified": [], "banned": []}, file)
 
-with open(os.getenv('APPDATA') + '\PC_Control_Bot\\Users.json') as file:
+with open(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json') as file:
     data = json.load(file)
 
 verified_users = set(data['verified'])
 banned_users = set(data['banned'])
 
-icon = trei()
 
-t2 = threading.Thread(target=trei_start, args=(icon,))
-t2.start()
-
-
-
-token_code = open(os.getenv('APPDATA') + '\PC_Control_Bot\\token', 'r')
+token_code = open(os.getenv('APPDATA') + '\\PC_Control_Bot\\token', 'r')
 token = token_code.read()
 token_code.close()
 
@@ -332,6 +358,9 @@ alive = True
 
 while alive == True:
     try:
+
+        internet_check()
+
         bot = telebot.TeleBot(token)
 
         icon.icon = Image.open(resource_path("logo_work.png"))
@@ -346,7 +375,7 @@ while alive == True:
                 bot.reply_to(message,
                              "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
             else:
-                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать аккаунт. Для этого напишите /ver")
 
 
         @bot.message_handler(commands=['ver'], func=lambda message: get_user_state(message.chat.id) == None)
@@ -365,7 +394,8 @@ while alive == True:
 
                 t1.start()
                 bot.send_message(message.chat.id,
-                                 f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для верификации акаунта')
+                                 f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для '
+                                 f'верификации аккаунта')
                 set_user_state(user_id, 'waiting_for_code')
 
 
@@ -376,7 +406,8 @@ while alive == True:
             try:
                 user_code = int(message.text)
                 if chat_id in user_data and user_data[chat_id] == user_code:
-                    bot.reply_to(message, "Код валиден! Вы теперь верифицированы.")
+                    markup = get_keyboard()
+                    bot.reply_to(message, "Код валиден! Вы теперь верифицированы.", parse_mode='html', reply_markup=markup)
                     verified_users.add(user_id)
                     save_data()
                     set_user_state(user_id, None)
@@ -390,7 +421,7 @@ while alive == True:
 
 
         @bot.message_handler(commands=['shutdown'], func=lambda message: get_user_state(message.chat.id) == None)
-        def ver_message(message):
+        def shutdown(message):
             user_id = message.from_user.id
             if login_system(user_id) == "val":
                 set_user_state(user_id, 'Selects_the_input_type_time')
@@ -408,11 +439,11 @@ while alive == True:
                 bot.reply_to(message,
                              "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
             else:
-                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать аккаунт. Для этого напишите /ver")
 
 
         @bot.message_handler(commands=['cancel'], func=lambda message: get_user_state(message.chat.id) == None)
-        def ver_message(message):
+        def cancel(message):
             user_id = message.from_user.id
             if login_system(user_id) == "val":
                 cancel = os.system('shutdown /a')
@@ -425,28 +456,54 @@ while alive == True:
                 bot.reply_to(message,
                              "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
             else:
-                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать аккаунт. Для этого напишите /ver")
 
 
-        @bot.message_handler(commands=['Online'], func=lambda message: get_user_state(message.chat.id) == None)
-        def ver_message(message):
+        @bot.message_handler(commands=['ping'], func=lambda message: get_user_state(message.chat.id) == None)
+        def ping(message):
             user_id = message.from_user.id
             if login_system(user_id) == "val":
                 image = Image.open(resource_path("logo_ping.png"))
                 icon.icon = image
+                notification_system('Пинг!', 'Ваш компьютер был пинганут!', 'logo_ping.png')
                 bot.reply_to(message, 'Компьютер онлайн!')
                 image = Image.open(resource_path("logo_work.png"))
                 icon.icon = image
             elif login_system(user_id) == "ban":
                 bot.reply_to(message,
-                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить настройки пользователей в клиенте")
+                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить "
+                             "настройки пользователей в клиенте")
             else:
-                bot.reply_to(message, "Для начала работы, необходимо верифицировать акаунт. Для этого напишите /ver")
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать аккаунт. Для этого напишите /ver")
+
+
+        @bot.message_handler(commands=['screenshot'], func=lambda message: get_user_state(message.chat.id) == None)
+        def screenshot(message):
+            user_id = message.from_user.id
+            if login_system(user_id) == "val":
+                image = Image.open(resource_path("logo_screenshot.png"))
+                icon.icon = image
+                notification_system('Запрос на скриншот', 'Был отправлен запрос на скриншот!', 'logo_screenshot.png')
+                screenshot = ImageGrab.grab(bbox=None, include_layered_windows=False, all_screens=True)
+                filepath = os.getenv('APPDATA') + '\\PC_Control_Bot\\temp_screenshot.png'
+                screenshot.save(filepath)
+                with open(filepath, 'rb') as file:
+                    bot.send_document(message.chat.id, file)
+                os.remove(filepath)
+                bot.send_message(message.chat.id, "Скриншот успешно отправлен!")
+                image = Image.open(resource_path("logo_work.png"))
+                icon.icon = image
+            elif login_system(user_id) == "ban":
+                bot.reply_to(message,
+                             "Вы заблокированы в системе. Для повторной верификации, необходимо сбросить "
+                             "настройки пользователей в клиенте")
+            else:
+                bot.reply_to(message, "Для начала работы, необходимо верифицировать аккаунт. Для этого напишите /ver")
 
         bot.polling(none_stop=True)
 
     except:
         image = Image.open(resource_path("logo_error.png"))
         icon.icon = image
-        print("error")
+        notification_system('Ошибка', 'Произошла ошибка, выполняется перезапуск', 'logo_error.png')
         time.sleep(5)

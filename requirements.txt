@@ -2,3 +2,4 @@ pytelegrambotapi
 pystray~=0.19.5
 pillow~=10.3.0
 ping3~=4.0.8
+notify-py
