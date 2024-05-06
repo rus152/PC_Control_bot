@@ -16,37 +16,27 @@ import pystray
 from PIL import Image
 from PIL import ImageGrab
 
-debug_start = 0
-debug_user_data = 0
-debug_full = 0
+###############
+#   ОТЛАДКА   #
+###############
+debug = 0
 
-""" Фигня для отладки """
-if debug_start == 1:
-    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\token')
-    messagebox.showinfo("Успешно", "Токен был удалён")
-    os._exit(0)
 
-if debug_user_data == 1:
-    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json')
-    messagebox.showinfo("Успешно", "Данные пользователей удалены")
-    os._exit(0)
 
-if debug_full == 1:
-    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\token')
-    os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json')
-    os.rmdir(os.getenv('APPDATA') + '\\PC_Control_Bot')
-    messagebox.showinfo("Успешно", "Папка удалена")
-    os._exit(0)
+###############
+#   СЛОВАРИ   #
+###############
 
-""" Словарь """
 user_data = {}
 user_states = {}
 
-""" Основные функции """
+########################
+#   Основные функции   #
+########################
 
 def on_confirm():
-    global user_input  # Глобальная переменная для хранения ввода пользователя
-    user_input = enter_token.get() # Получаем текст из текстового поля
+    global user_input
+    user_input = enter_token.get()
 
     """ Проверка валидности """
 
@@ -73,7 +63,7 @@ def on_confirm():
 
 def validate_token(token):
     """ Проверка токена с помощью регулярного выражения и длины. """
-    pattern = re.compile(r"^\d{10}:.+$")  # Первые 10 символов - цифры, затем двоеточие и любые символы
+    pattern = re.compile(r"^\d{10}:.+$")
     return pattern.match(token) is not None and len(token) == 46
 
 def on_exit():
@@ -101,33 +91,30 @@ def save_data():
     with open(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json', 'w') as file:
         json.dump({"verified": list(verified_users), "banned": list(banned_users)}, file)
 
-def code_display(chat_id):
+def code_display(chat_id, name):
     window = Tk()
-    window.title("Тест окно")
+    window.title("Верификации")
+    window.iconbitmap("icon.ico")
 
-    lbl = Label(window, text=f'{user_data[chat_id]}'[0])
-    lbl.grid(column=0, row=0)
+    window.geometry("250x90")
+    window.resizable(False, False)
 
-    lbl = Label(window, text=f'{user_data[chat_id]}'[1])
-    lbl.grid(column=1, row=0)
+    frame = Frame(window, bd=0)
 
-    lbl = Label(window, text=f'{user_data[chat_id]}'[2])
-    lbl.grid(column=2, row=0)
+    lbl0 = Label(window, text=f'Код для верификации аккаунта:\n{name}')
+    lbl0.pack(pady=(0, 0))
 
-    lbl = Label(window, text=f'{user_data[chat_id]}'[3])
-    lbl.grid(column=3, row=0)
+    for i in range(6):
+        lbl1 = Label(frame, text=f'{str(user_data[chat_id])[i]}')
+        lbl1.grid(row=1, column=i)
 
-    lbl = Label(window, text=f'{user_data[chat_id]}'[4])
-    lbl.grid(column=4, row=0)
-
-    lbl = Label(window, text=f'{user_data[chat_id]}'[5])
-    lbl.grid(column=5, row=0)
+    frame.place(relx=0.5, rely=0.5, anchor='center')
 
     window.mainloop()
 
 def get_keyboard() -> types.ReplyKeyboardMarkup:
     """
-    Creates and returns a keyboard for the bot.
+    Создание клавиатуры быстрого ввода
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     but1 = types.KeyboardButton("/shutdown")
@@ -251,22 +238,50 @@ def time_message(seconds):
         return "Компьютер отключается"
 
 def on_clicked_trei(icon, item):
-    if str(item) == "Restart":
+    if str(item) == "Отчистка токена":
+        os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\token')
+        messagebox.showinfo("Успешно", "Токен был удалён. Перезапуск")
         python = sys.executable
         os.execl(python, python, *sys.argv)
-    elif str(item) == "Exit":
+    elif str(item) == "Отчистка Юзера":
+        os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json')
+        messagebox.showinfo("Успешно", "Данные пользователей удалены. Перезапуск")
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+    elif str(item) == "Полный сброс":
+        os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\token')
+        os.remove(os.getenv('APPDATA') + '\\PC_Control_Bot\\Users.json')
+        os.rmdir(os.getenv('APPDATA') + '\\PC_Control_Bot')
+        messagebox.showinfo("Успешно", "Папка удалена. Перезапуск")
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+    elif str(item) == "Перезагрузить":
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+    elif str(item) == "Выход":
         icon.stop()
         try:
-            os._exit(0)  # Это немедленно завершит все процессы и потоки программы
+            os._exit(0)
         except SystemExit:
             print("Exiting...")
 
 def trei():
     image = Image.open(resource_path("logo_init.png"))
-    icon = pystray.Icon('What?', image, menu=pystray.Menu(
-        pystray.MenuItem("Restart", on_clicked_trei),
-        pystray.MenuItem("Exit", on_clicked_trei),
-    ))
+    if debug == 1:
+        icon = pystray.Icon('PC Control Bot', image, menu=pystray.Menu(
+            pystray.MenuItem('Debug', pystray.Menu(
+                             pystray.MenuItem("Перезагрузить", on_clicked_trei),
+                             pystray.MenuItem("Отчистка токена", on_clicked_trei),
+                             pystray.MenuItem("Отчистка Юзера", on_clicked_trei),
+                             pystray.MenuItem("Полный сброс", on_clicked_trei)
+                             )),
+            pystray.MenuItem("Выход", on_clicked_trei)
+        ))
+    else:
+        icon = pystray.Icon('PC Control Bot', image, menu=pystray.Menu(
+            pystray.MenuItem("Выход", on_clicked_trei),
+        ))
+
     return icon
 
 def trei_start(icon):
@@ -309,12 +324,20 @@ def internet_check():
             time.sleep(5)
 
 
+####################
+#   ОСНОВНОЙ КОД   #
+####################
+
+
 """ Проверка существования токена в APPDATA и создание его при отсутствии """
 
 icon = trei()
 
 t2 = threading.Thread(target=trei_start, args=(icon,))
 t2.start()
+
+if debug == 1:
+    notification_system('Внимание!', 'Запущена отладочная версия')
 
 try:
     f = open(os.getenv('APPDATA') + '\\PC_Control_Bot\\token', 'r')
@@ -389,12 +412,10 @@ while alive == True:
                 chat_id = message.chat.id
                 user_data[chat_id] = generate_code()
                 print("Используйте этот код для проверки:", user_data[chat_id])
-
-                t1 = threading.Thread(target=code_display, args=(chat_id,))
-
+                t1 = threading.Thread(target=code_display, args=(chat_id, message.from_user.first_name,))
                 t1.start()
                 bot.send_message(message.chat.id,
-                                 f'Вам в консоли вывелись числа для верификации, пожалуйста, введите их сюда для '
+                                 f'Вам на экране вывелись числа для верификации, пожалуйста, введите их сюда для '
                                  f'верификации аккаунта')
                 set_user_state(user_id, 'waiting_for_code')
 
