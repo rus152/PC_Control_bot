@@ -19,7 +19,7 @@ from PIL import ImageGrab
 ###############
 #   ОТЛАДКА   #
 ###############
-debug = 0
+debug = 1
 
 
 
@@ -94,7 +94,7 @@ def save_data():
 def code_display(chat_id, name):
     window = Tk()
     window.title("Верификации")
-    window.iconbitmap("icon.ico")
+    window.iconbitmap(resource_path("icon.ico"))
 
     window.geometry("250x90")
     window.resizable(False, False)
