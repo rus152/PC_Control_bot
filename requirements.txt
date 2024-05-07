@@ -3,3 +3,4 @@ pystray~=0.19.5
 pillow~=10.3.0
 notify-py
 requests~=2.31.0
+customtkinter
