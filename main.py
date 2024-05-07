@@ -422,6 +422,7 @@ def open_setting():
     Setting_window.title("Настройки")
     Setting_window.geometry("430x130")
     Setting_window.resizable(False, False)
+    window.iconbitmap(resource_path("icon.ico"))
 
     # Создаем переменные для чекбоксов и устанавливаем начальные состояния
 
