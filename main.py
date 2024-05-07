@@ -83,6 +83,34 @@ def on_confirm_welcome(chk1, chk2):
 
     window.destroy()
 
+def on_confirm_token():
+    user_input = enter_token.get()
+
+    """ Проверка валидности """
+
+    if validate_token(user_input):
+        messagebox.showinfo("Успешно", "Токен валиден")
+        tkn_val = 1
+    else:
+        messagebox.showerror("Ошибка", "Невалидный токен")
+        tkn_val = 0
+
+    """ Вписывания в APPDATA токена, для последующего использования """
+
+    if (tkn_val == 1):
+        try:
+            os.mkdir(os.getenv('APPDATA') + '\\PC_Control_Bot')
+        except:
+            pass
+        f = open(os.getenv('APPDATA') + '\\PC_Control_Bot\\token', 'w')
+        f.write(user_input)
+        f.close()
+        window.destroy()
+    else:
+        return
+
+
+
 
 def validate_token(token):
     """ Проверка токена с помощью регулярного выражения и длины. """
@@ -572,7 +600,7 @@ elif token_check() == False and setting_check() == True:
     confirm_button = CTkButton(window, text="BotFather", command=on_click_bot_father, width=70)
     confirm_button.grid(column=3, row=2, pady=5 , sticky='n')
 
-    confirm_button = CTkButton(window, text="Подтвердить", command=on_confirm_welcome, width=20)
+    confirm_button = CTkButton(window, text="Подтвердить", command=on_confirm_token, width=20)
     confirm_button.grid(column=3, row=3, pady=5, sticky='n')
 
     window.mainloop()
