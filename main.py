@@ -2,10 +2,8 @@ import json
 import os
 import random
 import re
-import sys
 import threading
 import time
-from tkinter import *
 from tkinter import messagebox
 import webbrowser
 
@@ -17,12 +15,15 @@ from PIL import ImageGrab
 from notifypy import Notify
 from telebot import types
 from customtkinter import *
+from requests.exceptions import ReadTimeout, ConnectionError
+from urllib3.exceptions import ProtocolError, ReadTimeoutError
+
 
 
 ###############
 #   ОТЛАДКА   #
 ###############
-debug = 0
+debug = 1
 
 
 
@@ -181,12 +182,12 @@ def time_select1(message):
     txt = message.text
     user_id = message.from_user.id
 
-    if txt == "Назад":
+    if txt == "Отмена":
         markup = get_keyboard()
         bot.reply_to(message, "Выход", parse_mode='html', reply_markup=markup)
         set_user_state(user_id, None)
 
-    elif txt == "Часы":
+    elif txt == "Часах":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         but1 = types.KeyboardButton("Отмена")
         markup.add(but1)
@@ -194,15 +195,15 @@ def time_select1(message):
         set_user_state(user_id, "Expectation_Hour")
         bot.register_next_step_handler(message, time_hour)
 
-    elif txt == "Минуты":
+    elif txt == "Минутах":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         but1 = types.KeyboardButton("Отмена")
         markup.add(but1)
-        bot.reply_to(message, "Через сколько минут?", parse_mode='html', reply_markup=markup)
+        bot.reply_to(message, "Через сколько минут?", parse_mode='html',    reply_markup=markup)
         set_user_state(user_id, "Expectation_Minute")
         bot.register_next_step_handler(message, time_Minute)
 
-    elif txt == "Секунды":
+    elif txt == "Секундах":
         markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
         but1 = types.KeyboardButton("Отмена")
         markup.add(but1)
@@ -424,7 +425,6 @@ def open_setting():
     Setting_window.resizable(False, False)
     Setting_window.iconbitmap(resource_path("icon.ico"))
 
-    # Создаем переменные для чекбоксов и устанавливаем начальные состояния
 
     var1 = BooleanVar(value=data_Setting['notify_ping'])
     var2 = BooleanVar(value=data_Setting['notify_screenshot'])
@@ -437,7 +437,6 @@ def open_setting():
     frame2 = CTkFrame(Setting_window)
     frame2.grid(row=0, column=1, padx=6, pady=6)
 
-    # Создаем чекбоксы
     chk1 = CTkCheckBox(frame1, text="Уведомления пинга", variable=var1)
     chk1.pack(padx=6, pady=6)
 
@@ -450,14 +449,12 @@ def open_setting():
     chk5 = CTkCheckBox(frame2, text="Удалить пользователей", variable=var5)
     chk5.pack(padx=6, pady=6)
 
-    # Создаем кнопку для сохранения
     btn = CTkButton(frame1, text="Сохранить", command=lambda: on_click_save(var1, var2))
     btn.pack(padx=6, pady=6)
 
     btn2 = CTkButton(frame2, text="Удалить", command=lambda: on_click_delete(var4, var5))
     btn2.pack(padx=6, pady=6)
 
-    # Запускаем главный цикл приложения
     Setting_window.mainloop()
 
 def on_click_save(var1, var2):
@@ -666,7 +663,6 @@ while alive == True:
             else:
                 chat_id = message.chat.id
                 user_data[chat_id] = generate_code()
-                #print("Используйте этот код для проверки:", user_data[chat_id])
                 t1 = threading.Thread(target=code_display, args=(chat_id, message.from_user.first_name,))
                 t1.start()
                 bot.send_message(message.chat.id,
@@ -702,13 +698,13 @@ while alive == True:
             if login_system(user_id) == "val":
                 set_user_state(user_id, 'Selects_the_input_type_time')
                 type_time = types.ReplyKeyboardMarkup(resize_keyboard=True)
-                but0 = types.KeyboardButton("Часы")
-                but1 = types.KeyboardButton("Минуты")
-                but2 = types.KeyboardButton("Секунды")
-                but3 = types.KeyboardButton("Назад")
+                but0 = types.KeyboardButton("Часах")
+                but1 = types.KeyboardButton("Минутах")
+                but2 = types.KeyboardButton("Секундах")
+                but3 = types.KeyboardButton("Отмена")
                 but4 = types.KeyboardButton("Отключить сейчас")
                 type_time.add(but0, but1, but2, but3, but4)
-                bot.send_message(message.chat.id, 'Как вы хотите написать время?',
+                bot.send_message(message.chat.id, 'Вы хотите написать время в...',
                                  parse_mode='html', reply_markup=type_time)
                 bot.register_next_step_handler(message, time_select1)
 
@@ -724,7 +720,6 @@ while alive == True:
             user_id = message.from_user.id
             if login_system(user_id) == "val":
                 cancel = os.system('shutdown /a')
-                #print(cancel)
                 if cancel == 1116:
                     bot.reply_to(message, 'Нет запланированного отключения')
                 else:
@@ -796,7 +791,7 @@ while alive == True:
         def screenshot(message):
             user_id = message.from_user.id
             if login_system(user_id) == "val":
-                bot.reply_to(message, text="Перевод компьютер отправлен в гибернацию")
+                bot.reply_to(message, text="Компьютер отправлен в гибернацию")
                 os.system(f'shutdown /h')
             elif login_system(user_id) == "ban":
                 bot.reply_to(message,
@@ -808,8 +803,9 @@ while alive == True:
 
         bot.polling(none_stop=True)
 
-    except:
+    except (ReadTimeout, ConnectionError, ProtocolError, ReadTimeoutError) as e:
         image = Image.open(resource_path("logo_error.png"))
         icon.icon = image
+        print(e)
         notification_system('Ошибка', 'Произошла ошибка, выполняется перезапуск', 'logo_error.png')
         time.sleep(5)
